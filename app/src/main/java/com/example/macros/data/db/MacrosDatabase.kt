@@ -1,6 +1,7 @@
 package com.example.macros.data.db
 
 import android.content.Context
+import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -17,7 +18,12 @@ class Conversores {
     fun diaAFecha(dia: Long): LocalDate = LocalDate.ofEpochDay(dia)
 }
 
-@Database(entities = [Alimento::class, Entrada::class, Peso::class], version = 1)
+@Database(
+    entities = [Alimento::class, Entrada::class, Peso::class],
+    version = 2,
+    // 1 → 2: alimentos archivados (columna "archivado" y el nombre deja de ser único a nivel de tabla).
+    autoMigrations = [AutoMigration(from = 1, to = 2)],
+)
 @TypeConverters(Conversores::class)
 abstract class MacrosDatabase : RoomDatabase() {
     abstract fun alimentoDao(): AlimentoDao

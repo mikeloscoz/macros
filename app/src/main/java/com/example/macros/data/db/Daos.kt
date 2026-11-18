@@ -3,7 +3,6 @@ package com.example.macros.data.db
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
@@ -13,21 +12,25 @@ import java.time.LocalDate
 
 @Dao
 interface AlimentoDao {
-    @Query("SELECT * FROM alimentos")
-    fun observarTodos(): Flow<List<Alimento>>
+    /** Alimentos visibles (no archivados). */
+    @Query("SELECT * FROM alimentos WHERE archivado = 0")
+    fun observarVisibles(): Flow<List<Alimento>>
 
+    /** Todos, archivados incluidos (para la copia de seguridad). */
     @Query("SELECT * FROM alimentos")
     suspend fun todos(): List<Alimento>
 
-    @Query("SELECT * FROM alimentos WHERE nombre = :nombre COLLATE NOCASE LIMIT 1")
-    suspend fun porNombre(nombre: String): Alimento?
+    @Query("SELECT * FROM alimentos WHERE archivado = 0 AND nombre = :nombre COLLATE NOCASE LIMIT 1")
+    suspend fun visiblePorNombre(nombre: String): Alimento?
 
-    /** Inserta los que no existan ya (por nombre). */
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertarSiNoExisten(alimentos: List<Alimento>)
+    @Query("SELECT nombre FROM alimentos WHERE archivado = 0")
+    suspend fun nombresVisibles(): List<String>
 
-    @Insert(onConflict = OnConflictStrategy.ABORT)
+    @Insert
     suspend fun insertar(alimento: Alimento): Long
+
+    @Insert
+    suspend fun insertarTodos(alimentos: List<Alimento>)
 
     @Update
     suspend fun actualizar(alimento: Alimento)

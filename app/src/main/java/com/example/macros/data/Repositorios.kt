@@ -22,12 +22,13 @@ class AlimentosRepository(private val dao: AlimentoDao) {
         strength = Collator.SECONDARY
     }
 
+    /** Alimentos visibles (sin los archivados), en orden alfabético. */
     val alimentos: Flow<List<Alimento>> =
-        dao.observarTodos().map { lista -> lista.sortedWith { a, b -> collator.compare(a.nombre, b.nombre) } }
+        dao.observarVisibles().map { lista -> lista.sortedWith { a, b -> collator.compare(a.nombre, b.nombre) } }
 
-    /** ¿Hay otro alimento (distinto de [idExcluido]) con ese nombre? */
+    /** ¿Hay otro alimento visible (distinto de [idExcluido]) con ese nombre? */
     suspend fun nombreOcupado(nombre: String, idExcluido: Long = 0): Boolean {
-        val existente = dao.porNombre(nombre.trim()) ?: return false
+        val existente = dao.visiblePorNombre(nombre.trim()) ?: return false
         return existente.id != idExcluido
     }
 
@@ -37,12 +38,22 @@ class AlimentosRepository(private val dao: AlimentoDao) {
         if (limpio.id == 0L) dao.insertar(limpio) else dao.actualizar(limpio)
     }
 
-    /** Borra el alimento y, con él, sus apuntes en el diario. */
-    suspend fun borrar(alimento: Alimento) = dao.borrar(alimento)
+    /**
+     * "Borra" el alimento: si está apuntado en el diario, solo lo archiva (desaparece de la lista
+     * pero los días pasados no cambian); si no se ha usado nunca, lo borra del todo.
+     */
+    suspend fun borrar(alimento: Alimento) {
+        if (dao.vecesUsado(alimento.id) > 0) dao.actualizar(alimento.copy(archivado = true))
+        else dao.borrar(alimento)
+    }
 
-    suspend fun vecesUsado(alimento: Alimento): Int = dao.vecesUsado(alimento.id)
-
-    suspend fun insertarSiNoExisten(alimentos: List<Alimento>) = dao.insertarSiNoExisten(alimentos)
+    /** Inserta los alimentos cuyo nombre no exista ya entre los visibles. Devuelve cuántos ha añadido. */
+    suspend fun insertarSiNoExisten(alimentos: List<Alimento>): Int {
+        val existentes = dao.nombresVisibles().map { it.lowercase() }.toMutableSet()
+        val nuevos = alimentos.filter { existentes.add(it.nombre.trim().lowercase()) }
+        dao.insertarTodos(nuevos)
+        return nuevos.size
+    }
 }
 
 class DiarioRepository(private val dao: EntradaDao) {

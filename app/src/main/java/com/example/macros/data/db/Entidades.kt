@@ -1,5 +1,6 @@
 package com.example.macros.data.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -8,8 +9,12 @@ import androidx.room.PrimaryKey
 import androidx.room.Relation
 import java.time.LocalDate
 
-/** Alimento con sus valores por 100 g. */
-@Entity(tableName = "alimentos", indices = [Index(value = ["nombre"], unique = true)])
+/**
+ * Alimento con sus valores por 100 g.
+ * [archivado]: se "borró" pero está apuntado en el diario. No aparece en listas ni buscadores,
+ * pero se conserva para que los días pasados no cambien. El nombre es único solo entre los no archivados.
+ */
+@Entity(tableName = "alimentos", indices = [Index(value = ["nombre"])])
 data class Alimento(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val nombre: String,
@@ -17,6 +22,7 @@ data class Alimento(
     val carbohidratos: Double,
     val proteinas: Double,
     val grasas: Double,
+    @ColumnInfo(defaultValue = "0") val archivado: Boolean = false,
 )
 
 /** Un alimento apuntado en una comida (1 a 4) de un día. */
@@ -27,6 +33,7 @@ data class Alimento(
             entity = Alimento::class,
             parentColumns = ["id"],
             childColumns = ["alimentoId"],
+            // Nunca se borra del todo un alimento usado (se archiva), así que esto no debería pasar.
             onDelete = ForeignKey.CASCADE,
         ),
     ],
