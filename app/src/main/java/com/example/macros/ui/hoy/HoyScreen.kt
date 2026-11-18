@@ -29,7 +29,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -73,12 +76,17 @@ private sealed interface Hoja {
 }
 
 @Composable
-fun HoyScreen(vm: HoyViewModel = viewModel(factory = fabrica { HoyViewModel(it) })) {
+fun HoyScreen(
+    volverAHoy: Flow<Unit> = emptyFlow(),
+    vm: HoyViewModel = viewModel(factory = fabrica { HoyViewModel(it) }),
+) {
     val estado by vm.estado.collectAsStateWithLifecycle()
     val busqueda by vm.busqueda.collectAsStateWithLifecycle()
     val resultados by vm.resultados.collectAsStateWithLifecycle()
     var hoja by remember { mutableStateOf<Hoja?>(null) }
     var calendario by remember { mutableStateOf(false) }
+
+    LaunchedEffect(volverAHoy) { volverAHoy.collect { vm.irAHoy() } }
 
     LifecycleResumeEffect(Unit) {
         vm.actualizarHoy()

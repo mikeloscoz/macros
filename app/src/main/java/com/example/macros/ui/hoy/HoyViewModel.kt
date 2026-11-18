@@ -86,6 +86,11 @@ class HoyViewModel(private val c: AppContainer) : ViewModel() {
         _fecha.value = minOf(fecha, _hoy.value)
     }
 
+    fun irAHoy() {
+        actualizarHoy()
+        _fecha.value = _hoy.value
+    }
+
     fun diaAnterior() = irA(_fecha.value.minusDays(1))
     fun diaSiguiente() = irA(_fecha.value.plusDays(1))
 

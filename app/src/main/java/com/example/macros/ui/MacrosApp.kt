@@ -15,6 +15,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import kotlinx.coroutines.flow.MutableSharedFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -48,6 +50,8 @@ fun MacrosApp() {
     val navController = rememberNavController()
     val entrada by navController.currentBackStackEntryAsState()
     val destino = entrada?.destination
+    // Tocar "Hoy" estando ya en Hoy → volver al día de hoy.
+    val volverAHoy = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
 
     Scaffold(
         bottomBar = {
@@ -59,6 +63,7 @@ fun MacrosApp() {
                         NavigationBarItem(
                             selected = seleccionada,
                             onClick = {
+                                if (seleccionada && pestana == Pestana.Hoy) volverAHoy.tryEmit(Unit)
                                 navController.navigate(pestana.ruta) {
                                     popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                                     launchSingleTop = true
@@ -92,7 +97,7 @@ fun MacrosApp() {
             enterTransition = { fadeIn() },
             exitTransition = { fadeOut() },
         ) {
-            composable(Pestana.Hoy.ruta) { HoyScreen() }
+            composable(Pestana.Hoy.ruta) { HoyScreen(volverAHoy = volverAHoy) }
             composable(Pestana.Alimentos.ruta) { AlimentosScreen() }
             composable(Pestana.Progreso.ruta) { ProgresoScreen() }
             composable(Pestana.Ajustes.ruta) { AjustesScreen() }
