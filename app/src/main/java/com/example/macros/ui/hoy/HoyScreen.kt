@@ -1,28 +1,303 @@
 package com.example.macros.ui.hoy
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DatePickerDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.example.macros.ui.components.CabeceraPantalla
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.macros.R
+import com.example.macros.data.db.Alimento
+import com.example.macros.data.db.EntradaConAlimento
+import com.example.macros.domain.Objetivos
+import com.example.macros.ui.components.Anillo
+import com.example.macros.ui.components.BarraMacro
+import com.example.macros.ui.components.BotonDiscontinuo
 import com.example.macros.ui.components.MargenLateral
 import com.example.macros.ui.components.TarjetaMacros
+import com.example.macros.ui.entero
+import com.example.macros.ui.fabrica
+import com.example.macros.ui.fechaLarga
+import com.example.macros.ui.theme.Borde
+import com.example.macros.ui.theme.ColorCarbohidratos
+import com.example.macros.ui.theme.ColorGrasas
+import com.example.macros.ui.theme.ColorProteinas
+import com.example.macros.ui.theme.Primario
+import com.example.macros.ui.theme.Rojo
+import com.example.macros.ui.theme.Tarjeta
+import com.example.macros.ui.theme.TextoSecundario
+import com.example.macros.ui.theme.VerdeClaro
+import com.example.macros.ui.tituloDia
+import java.time.LocalDate
+
+/** Hoja abierta: añadir en una comida, o editar una entrada. */
+private sealed interface Hoja {
+    data class Anadir(val comida: Int) : Hoja
+    data class Editar(val entrada: EntradaConAlimento) : Hoja
+}
 
 @Composable
-fun HoyScreen() {
-    Column(
-        Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .padding(horizontal = MargenLateral),
+fun HoyScreen(vm: HoyViewModel = viewModel(factory = fabrica { HoyViewModel(it) })) {
+    val estado by vm.estado.collectAsStateWithLifecycle()
+    val busqueda by vm.busqueda.collectAsStateWithLifecycle()
+    val resultados by vm.resultados.collectAsStateWithLifecycle()
+    var hoja by remember { mutableStateOf<Hoja?>(null) }
+    var calendario by remember { mutableStateOf(false) }
+
+    LifecycleResumeEffect(Unit) {
+        vm.actualizarHoy()
+        onPauseOrDispose { }
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().statusBarsPadding(),
+        contentPadding = PaddingValues(start = MargenLateral, end = MargenLateral, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        CabeceraPantalla("Hoy")
-        TarjetaMacros {
-            Text("Próximamente", style = MaterialTheme.typography.bodyLarge)
+        item {
+            Cabecera(
+                fecha = estado.fecha,
+                hoy = estado.hoy,
+                onAnterior = vm::diaAnterior,
+                onSiguiente = vm::diaSiguiente,
+                onCalendario = { calendario = true },
+            )
         }
+        if (!estado.cargando) {
+            item {
+                val objetivos = estado.objetivos
+                if (objetivos != null) Resumen(estado.totales, objetivos, estado.meta.texto)
+                else TarjetaMacros {
+                    Text("Registra tu peso para calcular tus objetivos.", style = MaterialTheme.typography.bodyLarge, color = TextoSecundario)
+                }
+            }
+            items(4) { i ->
+                TarjetaComida(
+                    numero = i + 1,
+                    entradas = estado.comidas[i],
+                    onAnadir = { vm.buscar(""); hoja = Hoja.Anadir(i + 1) },
+                    onEntrada = { hoja = Hoja.Editar(it) },
+                )
+            }
+        }
+    }
+
+    when (val h = hoja) {
+        is Hoja.Anadir -> HojaAnadir(
+            comida = h.comida,
+            busqueda = busqueda,
+            onBuscar = vm::buscar,
+            resultados = resultados,
+            onAnadir = { alimento: Alimento, gramos: Double -> vm.anadir(h.comida, alimento, gramos) },
+            onCerrar = { hoja = null },
+        )
+        is Hoja.Editar -> HojaEditar(
+            entrada = h.entrada,
+            onGuardar = { gramos -> vm.cambiarGramos(h.entrada.entrada, gramos) },
+            onBorrar = { vm.borrar(h.entrada.entrada) },
+            onCerrar = { hoja = null },
+        )
+        null -> Unit
+    }
+
+    if (calendario) {
+        SelectorFecha(
+            fecha = estado.fecha,
+            hoy = estado.hoy,
+            onElegir = { vm.irA(it); calendario = false },
+            onCerrar = { calendario = false },
+        )
+    }
+}
+
+@Composable
+private fun Cabecera(
+    fecha: LocalDate,
+    hoy: LocalDate,
+    onAnterior: () -> Unit,
+    onSiguiente: () -> Unit,
+    onCalendario: () -> Unit,
+) {
+    Row(Modifier.padding(top = 24.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(
+            Modifier
+                .weight(1f)
+                .clickable(onClick = onCalendario)
+                .padding(start = 4.dp, end = 8.dp, bottom = 4.dp),
+        ) {
+            Text(fecha.tituloDia(hoy), style = MaterialTheme.typography.displaySmall)
+            Spacer(Modifier.height(2.dp))
+            Text(fecha.fechaLarga(hoy), style = MaterialTheme.typography.bodyLarge, color = TextoSecundario)
+        }
+        val colores = IconButtonDefaults.iconButtonColors(
+            containerColor = VerdeClaro,
+            contentColor = Primario,
+            disabledContainerColor = VerdeClaro.copy(alpha = 0.4f),
+            disabledContentColor = Primario.copy(alpha = 0.3f),
+        )
+        IconButton(onClick = onAnterior, colors = colores, modifier = Modifier.size(44.dp)) {
+            Icon(painterResource(R.drawable.ic_anterior), contentDescription = "Día anterior")
+        }
+        Spacer(Modifier.width(8.dp))
+        IconButton(onClick = onSiguiente, enabled = fecha < hoy, colors = colores, modifier = Modifier.size(44.dp)) {
+            Icon(painterResource(R.drawable.ic_siguiente), contentDescription = "Día siguiente")
+        }
+    }
+}
+
+@Composable
+private fun Resumen(totales: Totales, objetivos: Objetivos, meta: String) {
+    val restantes = objetivos.kcal - totales.kcal
+    val pasado = restantes < -0.5
+    TarjetaMacros(padding = PaddingValues(start = 24.dp, end = 24.dp, top = 28.dp, bottom = 24.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Anillo(
+                progreso = if (objetivos.kcal > 0) (totales.kcal / objetivos.kcal).toFloat() else 1f,
+                color = if (pasado) Rojo else Primario,
+                modifier = Modifier.size(140.dp),
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        (if (pasado) -restantes else restantes).entero(),
+                        style = MaterialTheme.typography.headlineMedium.copy(fontSize = 34.sp, lineHeight = 38.sp),
+                        color = if (pasado) Rojo else MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        if (pasado) "kcal de más" else "kcal restantes",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (pasado) Rojo else TextoSecundario,
+                    )
+                }
+            }
+            Spacer(Modifier.width(24.dp))
+            Column {
+                Text("Consumidas", style = MaterialTheme.typography.bodyMedium, color = TextoSecundario)
+                Text("${totales.kcal.entero()} kcal", style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.ExtraBold))
+                Spacer(Modifier.height(12.dp))
+                Text("Objetivo · $meta", style = MaterialTheme.typography.bodyMedium, color = TextoSecundario)
+                Text("${objetivos.kcal.entero()} kcal", style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.ExtraBold))
+            }
+        }
+        Spacer(Modifier.height(24.dp))
+        HorizontalDivider(color = Borde)
+        Spacer(Modifier.height(20.dp))
+        BarraMacro("Carbohidratos", totales.carbohidratos, objetivos.carbohidratos, ColorCarbohidratos)
+        Spacer(Modifier.height(16.dp))
+        BarraMacro("Proteínas", totales.proteinas, objetivos.proteinas, ColorProteinas)
+        Spacer(Modifier.height(16.dp))
+        BarraMacro("Grasas", totales.grasas, objetivos.grasas, ColorGrasas)
+    }
+}
+
+@Composable
+private fun TarjetaComida(
+    numero: Int,
+    entradas: List<EntradaConAlimento>,
+    onAnadir: () -> Unit,
+    onEntrada: (EntradaConAlimento) -> Unit,
+) {
+    TarjetaMacros(padding = PaddingValues(horizontal = 20.dp, vertical = 20.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Comida $numero", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            if (entradas.isEmpty()) {
+                Text("Vacía", style = MaterialTheme.typography.bodyLarge, color = TextoSecundario)
+            } else {
+                Text(
+                    "${entradas.sumOf { it.kcal }.entero()} kcal",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = Primario,
+                )
+            }
+        }
+        Spacer(Modifier.height(if (entradas.isEmpty()) 12.dp else 4.dp))
+        entradas.forEachIndexed { i, e ->
+            if (i > 0) HorizontalDivider(color = Borde)
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp)
+                    .clickable { onEntrada(e) }
+                    .padding(vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(e.alimento.nombre, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp))
+                    Text("${e.entrada.gramos.entero()} g", style = MaterialTheme.typography.bodySmall)
+                }
+                Text("${e.kcal.entero()} kcal", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold))
+            }
+        }
+        if (entradas.isNotEmpty()) Spacer(Modifier.height(12.dp))
+        BotonDiscontinuo("Añadir alimento", onAnadir)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SelectorFecha(fecha: LocalDate, hoy: LocalDate, onElegir: (LocalDate) -> Unit, onCerrar: () -> Unit) {
+    val msDia = 86_400_000L
+    val estado = rememberDatePickerState(
+        initialSelectedDateMillis = fecha.toEpochDay() * msDia,
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis / msDia <= hoy.toEpochDay()
+            override fun isSelectableYear(year: Int) = year <= hoy.year
+        },
+    )
+    val colores = DatePickerDefaults.colors(
+        containerColor = Tarjeta,
+        selectedDayContainerColor = Primario,
+        todayDateBorderColor = Primario,
+        todayContentColor = Primario,
+        selectedYearContainerColor = Primario,
+    )
+    DatePickerDialog(
+        onDismissRequest = onCerrar,
+        colors = colores,
+        confirmButton = {
+            TextButton(onClick = {
+                estado.selectedDateMillis?.let { onElegir(LocalDate.ofEpochDay(it / msDia)) } ?: onCerrar()
+            }) { Text("Ir", color = Primario, style = MaterialTheme.typography.labelLarge) }
+        },
+        dismissButton = {
+            TextButton(onClick = onCerrar) { Text("Cancelar", color = Primario, style = MaterialTheme.typography.labelLarge) }
+        },
+    ) {
+        DatePicker(state = estado, colors = colores, showModeToggle = false)
     }
 }

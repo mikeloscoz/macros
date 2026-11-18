@@ -98,4 +98,6 @@ fun MacrosApp() {
             composable(Pestana.Ajustes.ruta) { AjustesScreen() }
         }
     }
+
+    PedirPesoSiFalta()
 }
