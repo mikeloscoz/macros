@@ -1,0 +1,30 @@
+package com.example.macros.data
+
+import android.content.Context
+import com.example.macros.data.db.MacrosDatabase
+import com.example.macros.domain.Objetivos
+import com.example.macros.domain.leerCsvAlimentos
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withContext
+
+/** Crea y comparte las piezas de datos de la app (inyección de dependencias a mano). */
+class AppContainer(private val context: Context) {
+    private val db = MacrosDatabase.crear(context)
+
+    val ajustes = AjustesRepository(context)
+    val alimentos = AlimentosRepository(db.alimentoDao())
+    val diario = DiarioRepository(db.entradaDao())
+    val pesos = PesoRepository(db.pesoDao())
+    val objetivos: Flow<Objetivos?> = observarObjetivos(ajustes, pesos)
+
+    /** La primera vez que se abre la app, carga los alimentos de assets/alimentos.csv. */
+    suspend fun cargarAlimentosIniciales() {
+        if (ajustes.alimentosInicialesCargados()) return
+        val texto = withContext(Dispatchers.IO) {
+            context.assets.open("alimentos.csv").bufferedReader(Charsets.UTF_8).use { it.readText() }
+        }
+        alimentos.insertarSiNoExisten(leerCsvAlimentos(texto))
+        ajustes.marcarAlimentosInicialesCargados()
+    }
+}
