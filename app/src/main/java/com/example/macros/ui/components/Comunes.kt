@@ -15,9 +15,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.ui.graphics.takeOrElse
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.sp
 import com.example.macros.ui.theme.Borde
 import com.example.macros.ui.theme.FormaTarjeta
 import com.example.macros.ui.theme.Tarjeta
+import com.example.macros.ui.theme.Texto
 import com.example.macros.ui.theme.TextoSecundario
 
 /** Margen lateral común de todas las pantallas. */
@@ -35,6 +43,26 @@ fun CabeceraPantalla(titulo: String, subtitulo: String? = null, modifier: Modifi
     }
 }
 
+/** Texto de una línea que reduce su tamaño si no cabe (pantallas estrechas). */
+@Composable
+fun TextoAjustable(
+    texto: String,
+    style: TextStyle,
+    modifier: Modifier = Modifier,
+    color: Color = Color.Unspecified,
+    tamanoMinimo: TextUnit = 11.sp,
+) {
+    val colorFinal = color.takeOrElse { style.color.takeOrElse { LocalContentColor.current } }
+    BasicText(
+        text = texto,
+        modifier = modifier,
+        style = style.copy(color = colorFinal),
+        maxLines = 1,
+        softWrap = false,
+        autoSize = TextAutoSize.StepBased(minFontSize = tamanoMinimo, maxFontSize = style.fontSize, stepSize = 0.5.sp),
+    )
+}
+
 /** Tarjeta blanca con borde verde suave y esquinas de 20 dp. */
 @Composable
 fun TarjetaMacros(
@@ -48,6 +76,7 @@ fun TarjetaMacros(
         modifier = modifier.fillMaxWidth(),
         shape = FormaTarjeta,
         color = color,
+        contentColor = Texto,
         border = if (borde) BorderStroke(1.dp, Borde) else null,
     ) {
         Column(Modifier.padding(padding), content = content)

@@ -17,6 +17,10 @@ class AppContainer(private val context: Context) {
     val diario = DiarioRepository(db.entradaDao())
     val pesos = PesoRepository(db.pesoDao())
     val objetivos: Flow<Objetivos?> = observarObjetivos(ajustes, pesos)
+    val copias = CopiaSeguridad(db, ajustes)
+
+    /** Para leer y escribir los archivos que elige el usuario en el selector del sistema. */
+    val contentResolver: android.content.ContentResolver get() = context.contentResolver
 
     /** La primera vez que se abre la app, carga los alimentos de assets/alimentos.csv. */
     suspend fun cargarAlimentosIniciales() {

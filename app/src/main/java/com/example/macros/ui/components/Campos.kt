@@ -6,6 +6,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -60,14 +67,26 @@ fun CampoConEtiqueta(
     numerico: Boolean = false,
     error: String? = null,
     imeAction: ImeAction = ImeAction.Next,
+    /** Si se indica: se llama al pulsar "Hecho" en el teclado o al salir del campo. */
+    alTerminar: (() -> Unit)? = null,
 ) {
+    val foco = LocalFocusManager.current
+    var teniaFoco by remember { mutableStateOf(false) }
     Column(modifier) {
         EtiquetaCampo(etiqueta)
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(
             value = valor,
             onValueChange = onCambio,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { f ->
+                    if (teniaFoco && !f.isFocused) alTerminar?.invoke()
+                    teniaFoco = f.isFocused
+                },
+            keyboardActions = KeyboardActions(onDone = {
+                if (alTerminar != null) foco.clearFocus() else defaultKeyboardAction(ImeAction.Done)
+            }),
             singleLine = true,
             isError = error != null,
             shape = RoundedCornerShape(16.dp),

@@ -54,6 +54,7 @@ import com.example.macros.ui.components.BarraMacro
 import com.example.macros.ui.components.BotonDiscontinuo
 import com.example.macros.ui.components.MargenLateral
 import com.example.macros.ui.components.TarjetaMacros
+import com.example.macros.ui.components.TextoAjustable
 import com.example.macros.ui.entero
 import com.example.macros.ui.fabrica
 import com.example.macros.ui.fechaLarga
@@ -193,33 +194,35 @@ private fun Cabecera(
 private fun Resumen(totales: Totales, objetivos: Objetivos, meta: String) {
     val restantes = objetivos.kcal - totales.kcal
     val pasado = restantes < -0.5
-    TarjetaMacros(padding = PaddingValues(start = 24.dp, end = 24.dp, top = 28.dp, bottom = 24.dp)) {
+    TarjetaMacros(padding = PaddingValues(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 24.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Anillo(
                 progreso = if (objetivos.kcal > 0) (totales.kcal / objetivos.kcal).toFloat() else 1f,
                 color = if (pasado) Rojo else Primario,
-                modifier = Modifier.size(140.dp),
+                modifier = Modifier.size(136.dp),
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
+                Column(Modifier.padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    TextoAjustable(
                         (if (pasado) -restantes else restantes).entero(),
                         style = MaterialTheme.typography.headlineMedium.copy(fontSize = 34.sp, lineHeight = 38.sp),
                         color = if (pasado) Rojo else MaterialTheme.colorScheme.onSurface,
+                        tamanoMinimo = 20.sp,
                     )
-                    Text(
+                    TextoAjustable(
                         if (pasado) "kcal de más" else "kcal restantes",
                         style = MaterialTheme.typography.bodyMedium,
                         color = if (pasado) Rojo else TextoSecundario,
                     )
                 }
             }
-            Spacer(Modifier.width(24.dp))
-            Column {
-                Text("Consumidas", style = MaterialTheme.typography.bodyMedium, color = TextoSecundario)
-                Text("${totales.kcal.entero()} kcal", style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.ExtraBold))
+            Spacer(Modifier.width(20.dp))
+            Column(Modifier.weight(1f)) {
+                val grande = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
+                TextoAjustable("Consumidas", MaterialTheme.typography.bodyMedium, color = TextoSecundario)
+                TextoAjustable("${totales.kcal.entero()} kcal", grande, tamanoMinimo = 16.sp)
                 Spacer(Modifier.height(12.dp))
-                Text("Objetivo · $meta", style = MaterialTheme.typography.bodyMedium, color = TextoSecundario)
-                Text("${objetivos.kcal.entero()} kcal", style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.ExtraBold))
+                TextoAjustable("Objetivo · $meta", MaterialTheme.typography.bodyMedium, color = TextoSecundario)
+                TextoAjustable("${objetivos.kcal.entero()} kcal", grande, tamanoMinimo = 16.sp)
             }
         }
         Spacer(Modifier.height(24.dp))

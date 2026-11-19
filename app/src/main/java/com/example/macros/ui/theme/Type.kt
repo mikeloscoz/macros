@@ -16,7 +16,9 @@ val Inter = FontFamily(
     Font(R.font.inter_extrabold, FontWeight.ExtraBold),
 )
 
-private val base = TextStyle(fontFamily = Inter, color = Texto)
+// Sin color fijo: el texto toma el color de su contenedor (onSurface = Texto en todo el tema),
+// así funciona también sobre fondos oscuros como el snackbar.
+private val base = TextStyle(fontFamily = Inter)
 
 val MacrosTypography = Typography(
     // Títulos de pantalla ("Hoy", "Alimentos"...)

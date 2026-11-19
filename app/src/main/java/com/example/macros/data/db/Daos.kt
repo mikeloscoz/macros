@@ -40,6 +40,9 @@ interface AlimentoDao {
 
     @Query("SELECT COUNT(*) FROM entradas WHERE alimentoId = :alimentoId")
     suspend fun vecesUsado(alimentoId: Long): Int
+
+    @Query("DELETE FROM alimentos")
+    suspend fun borrarTodos()
 }
 
 @Dao
@@ -66,6 +69,9 @@ interface EntradaDao {
 
     @Delete
     suspend fun borrar(entrada: Entrada)
+
+    @Query("DELETE FROM entradas")
+    suspend fun borrarTodas()
 }
 
 @Dao
@@ -85,4 +91,7 @@ interface PesoDao {
 
     @Upsert
     suspend fun guardarTodos(pesos: List<Peso>)
+
+    @Query("DELETE FROM pesos")
+    suspend fun borrarTodos()
 }

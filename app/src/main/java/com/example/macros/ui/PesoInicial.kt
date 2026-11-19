@@ -47,29 +47,44 @@ class PesoInicialViewModel(private val pesos: PesoRepository) : ViewModel() {
 fun PedirPesoSiFalta(vm: PesoInicialViewModel = viewModel(factory = fabrica { PesoInicialViewModel(it.pesos) })) {
     val falta by vm.falta.collectAsStateWithLifecycle()
     if (falta != true) return
+    DialogoPeso(
+        titulo = "¿Cuánto pesas?",
+        explicacion = "Lo necesito para calcular tus objetivos de proteínas y grasas. Podrás cambiarlo en Ajustes.",
+        inicial = "",
+        onGuardar = vm::registrar,
+        onCancelar = null,
+    )
+}
 
-    var texto by remember { mutableStateOf("") }
+/** Diálogo para escribir un peso. Sin [onCancelar] no se puede cerrar sin guardar. */
+@Composable
+fun DialogoPeso(
+    titulo: String,
+    explicacion: String?,
+    inicial: String,
+    onGuardar: (Double) -> Unit,
+    onCancelar: (() -> Unit)?,
+) {
+    var texto by remember { mutableStateOf(inicial) }
     var error by remember { mutableStateOf<String?>(null) }
     fun guardar() {
         val kg = leerDecimal(texto)
-        if (kg == null || kg < 20 || kg > 400) error = "Escribe un peso válido" else vm.registrar(kg)
+        if (kg == null || kg < 20 || kg > 400) error = "Escribe un peso válido" else onGuardar(kg)
     }
 
     AlertDialog(
-        onDismissRequest = { },
-        properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
+        onDismissRequest = { onCancelar?.invoke() },
+        properties = DialogProperties(dismissOnBackPress = onCancelar != null, dismissOnClickOutside = onCancelar != null),
         containerColor = Tarjeta,
-        title = { Text("¿Cuánto pesas?", style = MaterialTheme.typography.titleLarge) },
+        title = { Text(titulo, style = MaterialTheme.typography.titleLarge) },
         text = {
             Column {
-                Text(
-                    "Lo necesito para calcular tus objetivos de proteínas y grasas. Podrás cambiarlo en Ajustes.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextoSecundario,
-                )
-                Spacer(Modifier.height(16.dp))
+                if (explicacion != null) {
+                    Text(explicacion, style = MaterialTheme.typography.bodyMedium, color = TextoSecundario)
+                    Spacer(Modifier.height(16.dp))
+                }
                 CampoConEtiqueta(
-                    etiqueta = "Peso actual",
+                    etiqueta = "Peso",
                     valor = texto,
                     onCambio = { texto = it; error = null },
                     unidad = "kg",
@@ -82,6 +97,13 @@ fun PedirPesoSiFalta(vm: PesoInicialViewModel = viewModel(factory = fabrica { Pe
         confirmButton = {
             TextButton(onClick = ::guardar) {
                 Text("Guardar", color = Primario, style = MaterialTheme.typography.labelLarge)
+            }
+        },
+        dismissButton = onCancelar?.let { cancelar ->
+            {
+                TextButton(onClick = cancelar) {
+                    Text("Cancelar", color = Primario, style = MaterialTheme.typography.labelLarge)
+                }
             }
         },
     )
