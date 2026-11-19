@@ -63,6 +63,8 @@ import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
 
+private val ClaveEtiquetas = ExtraStore.Key<List<String>>()
+
 @Composable
 private fun fuenteInter(): Typeface {
     val context = LocalContext.current
@@ -144,8 +146,14 @@ fun GraficaPeso(pesos: List<Peso>, modifier: Modifier = Modifier) {
 fun GraficaKcal(barras: List<Barra>, objetivo: Double?, modifier: Modifier = Modifier) {
     val productor = remember { CartesianChartModelProducer() }
     val valores = barras.map { it.kcal ?: 0.0 }
-    LaunchedEffect(valores) {
-        productor.runTransaction { columnSeries { series(valores) } }
+    val etiquetas = barras.map { it.etiqueta }
+    LaunchedEffect(valores, etiquetas) {
+        // Las etiquetas viajan con los datos en la misma actualización: así nunca se desincronizan
+        // al cambiar de periodo (7, 4 o 12 barras).
+        productor.runTransaction {
+            columnSeries { series(valores) }
+            extras { it[ClaveEtiquetas] = etiquetas }
+        }
     }
     val maxY = max(valores.maxOrNull() ?: 0.0, objetivo ?: 0.0) * 1.18
     val grosor = when (barras.size) { in 0..4 -> 40.dp; in 5..7 -> 26.dp; else -> 15.dp }
@@ -186,8 +194,11 @@ fun GraficaKcal(barras: List<Barra>, objetivo: Double?, modifier: Modifier = Mod
                 tick = null,
                 guideline = null,
                 label = rememberAxisLabelComponent(color = TextoSecundario, typeface = fuente, textSize = 12.sp),
-                valueFormatter = remember(barras) {
-                    CartesianValueFormatter { _, x, _ -> barras.getOrNull(x.toInt())?.etiqueta ?: "" }
+                valueFormatter = remember {
+                    CartesianValueFormatter { contexto, x, _ ->
+                        // Vico no admite etiquetas vacías en los ejes.
+                        contexto.model.extraStore.getOrNull(ClaveEtiquetas)?.getOrNull(x.toInt()) ?: (x.toInt() + 1).toString()
+                    }
                 },
             ),
             decorations = decoraciones,
