@@ -269,8 +269,9 @@ private fun TarjetaKcal(periodo: Periodo, resumen: ResumenProgreso, objetivo: Do
         val media = resumen.mediaKcal
         Text(
             buildAnnotatedString {
-                if (objetivo != null) append("Objetivo ${objetivo.entero()} kcal · ")
+                if (objetivo != null) append("Objetivo ${objetivo.entero()} kcal")
                 if (media != null) {
+                    if (objetivo != null) append(" · ")
                     append("media $nombre ")
                     withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Texto)) { append(media.entero()) }
                 }
