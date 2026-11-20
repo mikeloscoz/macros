@@ -4,6 +4,7 @@ import com.example.macros.data.db.Peso
 import com.example.macros.domain.DiaComido
 import com.example.macros.domain.Periodo
 import com.example.macros.domain.calcularProgreso
+import com.example.macros.domain.desplazar
 import com.example.macros.domain.rango
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -53,6 +54,24 @@ class ProgresoTest {
         val r = calcularProgreso(Periodo.Semana, hoy, listOf(fuera, dia(16, 2000.0)), emptyList())
         assertEquals(1, r.diasRegistrados)
         assertEquals(2000.0, r.barras[0].kcal!!, 0.001) // lunes 16
+    }
+
+    @Test
+    fun objetivoDeCadaDia() {
+        // El objetivo cambió a mitad de semana: la barra compara con la media de los objetivos de sus días.
+        val dias = listOf(
+            DiaComido(LocalDate.of(2026, 11, 2), 2000.0, 100.0, objetivoKcal = 2000.0),
+            DiaComido(LocalDate.of(2026, 11, 3), 2000.0, 100.0, objetivoKcal = 1800.0),
+        )
+        val r = calcularProgreso(Periodo.Mes, hoy, dias, emptyList())
+        assertEquals(1900.0, r.barras[0].objetivo!!, 0.001)
+        assertEquals(1900.0, r.objetivoMedio!!, 0.001)
+    }
+
+    @Test
+    fun periodoAnterior() {
+        val ref = Periodo.Mes.desplazar(hoy, -1)
+        assertEquals(LocalDate.of(2026, 10, 1), Periodo.Mes.rango(ref).desde)
     }
 
     @Test

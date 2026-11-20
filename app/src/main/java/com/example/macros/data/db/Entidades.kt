@@ -7,6 +7,8 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.Relation
+import com.example.macros.domain.Meta
+import com.example.macros.domain.Sexo
 import java.time.LocalDate
 
 /**
@@ -53,6 +55,22 @@ data class Peso(
     @PrimaryKey val fecha: LocalDate,
     val kg: Double,
 )
+
+/**
+ * Ajustes vigentes desde [fecha] (incluida) hasta el siguiente cambio. Así cada día se compara con
+ * los objetivos que tenía entonces. Si se cambian dos veces el mismo día, la fila se sobrescribe.
+ */
+@Entity(tableName = "ajustes_historial")
+data class AjustesDesde(
+    @PrimaryKey val fecha: LocalDate,
+    val mantenimiento: Int,
+    val meta: Meta,
+    val sexo: Sexo,
+)
+
+/** Día marcado para no contar en Progreso (comida fuera, vacaciones...). */
+@Entity(tableName = "dias_excluidos")
+data class DiaExcluido(@PrimaryKey val fecha: LocalDate)
 
 /** Entrada del diario junto con su alimento, para mostrar y calcular valores. */
 data class EntradaConAlimento(

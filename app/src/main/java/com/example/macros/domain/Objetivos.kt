@@ -1,5 +1,8 @@
 package com.example.macros.domain
 
+import com.example.macros.data.db.AjustesDesde
+import com.example.macros.data.db.Peso
+import java.time.LocalDate
 import kotlin.math.max
 
 enum class Meta(val texto: String, val ajusteKcal: Int) {
@@ -20,6 +23,25 @@ data class Objetivos(
     val proteinas: Double,
     val grasas: Double,
 )
+
+/** Objetivos de un día concreto y el objetivo (meta) que estaba elegido ese día. */
+data class ObjetivosDia(val objetivos: Objetivos, val meta: Meta)
+
+/**
+ * Objetivos de [fecha] con los ajustes vigentes ese día y el último peso registrado hasta ese día.
+ * Si la fecha es anterior al primer registro, se usa el primero. Null si no hay ajustes o pesos.
+ * [historial] y [pesos] pueden venir en cualquier orden.
+ */
+fun objetivosEn(fecha: LocalDate, historial: List<AjustesDesde>, pesos: List<Peso>): ObjetivosDia? {
+    val ajustes = historial.filter { !it.fecha.isAfter(fecha) }.maxByOrNull { it.fecha }
+        ?: historial.minByOrNull { it.fecha } ?: return null
+    val peso = pesos.filter { !it.fecha.isAfter(fecha) }.maxByOrNull { it.fecha }
+        ?: pesos.minByOrNull { it.fecha } ?: return null
+    return ObjetivosDia(
+        calcularObjetivos(ajustes.mantenimiento, ajustes.meta, ajustes.sexo, peso.kg),
+        ajustes.meta,
+    )
+}
 
 fun calcularObjetivos(mantenimiento: Int, meta: Meta, sexo: Sexo, pesoKg: Double): Objetivos {
     val kcal = (mantenimiento + meta.ajusteKcal).toDouble()

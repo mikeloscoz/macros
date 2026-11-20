@@ -43,6 +43,8 @@ data class HoyUiState(
     val totales: Totales = Totales(),
     val objetivos: Objetivos? = null,
     val meta: Meta = Meta.Mantener,
+    /** El día está marcado para no contar en Progreso. */
+    val excluido: Boolean = false,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -54,17 +56,18 @@ class HoyViewModel(private val c: AppContainer) : ViewModel() {
         _fecha.flatMapLatest { c.diario.dia(it) },
         _fecha,
         _hoy,
-        c.objetivos,
-        c.ajustes.ajustes,
-    ) { entradas, fecha, hoy, objetivos, ajustes ->
+        _fecha.flatMapLatest { c.objetivosEn(it) },
+        _fecha.flatMapLatest { c.diasExcluidos.excluido(it) },
+    ) { entradas, fecha, hoy, objetivosDia, excluido ->
         HoyUiState(
             cargando = false,
             fecha = fecha,
             hoy = hoy,
             comidas = (1..4).map { n -> entradas.filter { it.entrada.comida == n } },
             totales = entradas.totales(),
-            objetivos = objetivos,
-            meta = ajustes.meta,
+            objetivos = objetivosDia?.objetivos,
+            meta = objetivosDia?.meta ?: Meta.Mantener,
+            excluido = excluido,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HoyUiState())
 
@@ -115,5 +118,11 @@ class HoyViewModel(private val c: AppContainer) : ViewModel() {
 
     fun borrar(entrada: Entrada) {
         viewModelScope.launch { c.diario.borrar(entrada) }
+    }
+
+    /** Marca o desmarca el día que se está viendo para que no cuente en Progreso. */
+    fun marcarExcluido(excluir: Boolean) {
+        val fecha = _fecha.value
+        viewModelScope.launch { c.diasExcluidos.marcar(fecha, excluir) }
     }
 }

@@ -19,16 +19,22 @@ class Conversores {
 }
 
 @Database(
-    entities = [Alimento::class, Entrada::class, Peso::class],
-    version = 2,
-    // 1 → 2: alimentos archivados (columna "archivado" y el nombre deja de ser único a nivel de tabla).
-    autoMigrations = [AutoMigration(from = 1, to = 2)],
+    entities = [Alimento::class, Entrada::class, Peso::class, AjustesDesde::class, DiaExcluido::class],
+    version = 3,
+    autoMigrations = [
+        // 1 → 2: alimentos archivados (columna "archivado" y el nombre deja de ser único a nivel de tabla).
+        AutoMigration(from = 1, to = 2),
+        // 2 → 3: historial de ajustes y días que no cuentan (tablas nuevas).
+        AutoMigration(from = 2, to = 3),
+    ],
 )
 @TypeConverters(Conversores::class)
 abstract class MacrosDatabase : RoomDatabase() {
     abstract fun alimentoDao(): AlimentoDao
     abstract fun entradaDao(): EntradaDao
     abstract fun pesoDao(): PesoDao
+    abstract fun ajustesDao(): AjustesDao
+    abstract fun diaExcluidoDao(): DiaExcluidoDao
 
     companion object {
         fun crear(context: Context): MacrosDatabase =

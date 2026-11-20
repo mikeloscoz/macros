@@ -1,5 +1,6 @@
 package com.example.macros.ui.ajustes
 
+import com.example.macros.ui.components.Opciones
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -166,6 +167,11 @@ private fun MisDatos(estado: AjustesUiState, vm: AjustesViewModel) {
 
     TarjetaMacros {
         Text("Mis datos", style = MaterialTheme.typography.titleLarge)
+        Text(
+            "Los cambios cuentan desde hoy: los días anteriores conservan sus objetivos.",
+            style = MaterialTheme.typography.bodySmall,
+            color = TextoSecundario,
+        )
         Spacer(Modifier.height(16.dp))
         CampoConEtiqueta(
             etiqueta = "Peso actual",
@@ -207,45 +213,6 @@ private fun MisDatos(estado: AjustesUiState, vm: AjustesViewModel) {
         EtiquetaCampo("Sexo")
         Spacer(Modifier.height(8.dp))
         Opciones(Sexo.entries, ajustes.sexo, { it.texto }, vm::elegirSexo)
-    }
-}
-
-/** Botones de opción en fila, del mismo ancho; el elegido en verde. */
-@Composable
-private fun <T> Opciones(opciones: List<T>, elegida: T, texto: (T) -> String, onElegir: (T) -> Unit) = BoxWithConstraints {
-    // Mismo tamaño de letra en todas las opciones: el que permite que quepa la más larga.
-    val separacion = 10.dp
-    val relleno = 8.dp
-    val medidor = rememberTextMeasurer()
-    val base = MaterialTheme.typography.labelLarge
-    val densidad = LocalDensity.current
-    val anchoTexto = with(densidad) {
-        ((maxWidth - separacion * (opciones.size - 1)) / opciones.size - relleno * 2).toPx()
-    }
-    val factor = opciones.minOf { o ->
-        val ancho = medidor.measure(texto(o), base, maxLines = 1, softWrap = false).size.width
-        if (ancho > 0) minOf(1f, anchoTexto / ancho) else 1f
-    }
-    val estilo = base.copy(fontSize = base.fontSize * factor)
-
-    Row(horizontalArrangement = Arrangement.spacedBy(separacion)) {
-        opciones.forEach { opcion ->
-            val activa = opcion == elegida
-            val forma = RoundedCornerShape(14.dp)
-            Box(
-                Modifier
-                    .weight(1f)
-                    .height(52.dp)
-                    .clip(forma)
-                    .background(if (activa) VerdeClaro else Tarjeta)
-                    .border(BorderStroke(if (activa) 1.5.dp else 1.dp, if (activa) Primario else Borde), forma)
-                    .clickable { onElegir(opcion) }
-                    .padding(horizontal = relleno),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(texto(opcion), style = estilo, color = if (activa) Primario else Texto, maxLines = 1, softWrap = false)
-            }
-        }
     }
 }
 

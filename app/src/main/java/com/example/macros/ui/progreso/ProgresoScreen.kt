@@ -21,7 +21,16 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.example.macros.R
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,6 +76,12 @@ fun ProgresoScreen(vm: ProgresoViewModel = viewModel(factory = fabrica { Progres
     val estado by vm.estado.collectAsStateWithLifecycle()
     val periodo by vm.periodo.collectAsStateWithLifecycle()
     var registrando by remember { mutableStateOf(false) }
+    var verHistorial by remember { mutableStateOf(false) }
+
+    LifecycleResumeEffect(Unit) {
+        vm.actualizarHoy()
+        onPauseOrDispose { }
+    }
 
     Column(
         Modifier
@@ -77,12 +92,13 @@ fun ProgresoScreen(vm: ProgresoViewModel = viewModel(factory = fabrica { Progres
             .padding(bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        CabeceraPantalla("Progreso", estado.resumen?.rango?.let { textoRango(periodo, it) })
+        CabeceraPantalla("Progreso", null)
         SelectorPeriodo(periodo, vm::elegir)
 
         val resumen = estado.resumen
         if (!estado.cargando && resumen != null) {
-            TarjetaPeso(estado, resumen, onRegistrar = { registrando = true })
+            NavegadorPeriodo(textoRango(estado.periodo, resumen.rango), !estado.esActual, vm::anterior, vm::siguiente)
+            TarjetaPeso(estado, resumen, onRegistrar = { registrando = true }, onHistorial = { verHistorial = true })
             TarjetaKcal(periodo, resumen, estado.objetivoKcal)
             if (resumen.diasRegistrados > 0) DatosRapidos(resumen)
         }
@@ -96,6 +112,40 @@ fun ProgresoScreen(vm: ProgresoViewModel = viewModel(factory = fabrica { Progres
             onGuardar = { vm.registrarPeso(it); registrando = false },
             onCancelar = { registrando = false },
         )
+    }
+
+    if (verHistorial) {
+        HojaPesos(
+            pesos = estado.historialPesos,
+            hoy = estado.hoy,
+            onGuardar = vm::registrarPeso,
+            onBorrar = vm::borrarPeso,
+            onCerrar = { verHistorial = false },
+        )
+    }
+}
+
+/** ‹ Noviembre 2026 › para moverse entre periodos; no deja pasar del actual. */
+@Composable
+private fun NavegadorPeriodo(texto: String, puedeAvanzar: Boolean, onAnterior: () -> Unit, onSiguiente: () -> Unit) {
+    val colores = IconButtonDefaults.iconButtonColors(
+        containerColor = VerdeClaro,
+        contentColor = Primario,
+        disabledContainerColor = VerdeClaro.copy(alpha = 0.4f),
+        disabledContentColor = Primario.copy(alpha = 0.3f),
+    )
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = onAnterior, colors = colores, modifier = Modifier.size(44.dp)) {
+            Icon(painterResource(R.drawable.ic_anterior), contentDescription = "Periodo anterior")
+        }
+        TextoAjustable(
+            texto,
+            MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center),
+            modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+        )
+        IconButton(onClick = onSiguiente, enabled = puedeAvanzar, colors = colores, modifier = Modifier.size(44.dp)) {
+            Icon(painterResource(R.drawable.ic_siguiente), contentDescription = "Periodo siguiente")
+        }
     }
 }
 
@@ -143,7 +193,7 @@ private fun SelectorPeriodo(elegido: Periodo, onElegir: (Periodo) -> Unit) {
 }
 
 @Composable
-private fun TarjetaPeso(estado: ProgresoUiState, resumen: ResumenProgreso, onRegistrar: () -> Unit) {
+private fun TarjetaPeso(estado: ProgresoUiState, resumen: ResumenProgreso, onRegistrar: () -> Unit, onHistorial: () -> Unit) {
     val actual = estado.pesoActual
     val inicial = estado.pesoInicial
     TarjetaMacros {
@@ -199,6 +249,10 @@ private fun TarjetaPeso(estado: ProgresoUiState, resumen: ResumenProgreso, onReg
             colors = ButtonDefaults.outlinedButtonColors(contentColor = Primario),
         ) {
             Text("Registrar peso de hoy", style = MaterialTheme.typography.labelLarge)
+        }
+        Spacer(Modifier.height(4.dp))
+        TextButton(onClick = onHistorial, modifier = Modifier.fillMaxWidth().height(44.dp)) {
+            Text("Historial de pesos", color = Primario, style = MaterialTheme.typography.labelLarge)
         }
     }
 }

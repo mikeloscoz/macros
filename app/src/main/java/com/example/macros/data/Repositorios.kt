@@ -7,8 +7,10 @@ import com.example.macros.data.db.EntradaConAlimento
 import com.example.macros.data.db.EntradaDao
 import com.example.macros.data.db.Peso
 import com.example.macros.data.db.PesoDao
-import com.example.macros.domain.Objetivos
-import com.example.macros.domain.calcularObjetivos
+import com.example.macros.data.db.DiaExcluido
+import com.example.macros.data.db.DiaExcluidoDao
+import com.example.macros.domain.ObjetivosDia
+import com.example.macros.domain.objetivosEn
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -80,10 +82,21 @@ class PesoRepository(private val dao: PesoDao) {
 
     /** Registra el peso de un día; si ya había uno ese día, lo sustituye. */
     suspend fun registrar(kg: Double, fecha: LocalDate = LocalDate.now()) = dao.guardar(Peso(fecha, kg))
+
+    suspend fun borrar(peso: Peso) = dao.borrar(peso)
 }
 
-/** Objetivos diarios calculados con los ajustes y el peso actual. Null hasta que haya algún peso. */
-fun observarObjetivos(ajustes: AjustesRepository, pesos: PesoRepository): Flow<Objetivos?> =
-    combine(ajustes.ajustes, pesos.actual) { a, peso ->
-        peso?.let { calcularObjetivos(a.mantenimiento, a.meta, a.sexo, it.kg) }
+/** Días marcados para no contar en Progreso. */
+class DiasExcluidosRepository(private val dao: DiaExcluidoDao) {
+    val excluidos: Flow<Set<LocalDate>> = dao.observarTodos().map { lista -> lista.map { it.fecha }.toSet() }
+
+    fun excluido(fecha: LocalDate): Flow<Boolean> = excluidos.map { fecha in it }
+
+    suspend fun marcar(fecha: LocalDate, excluir: Boolean) {
+        if (excluir) dao.excluir(DiaExcluido(fecha)) else dao.incluir(DiaExcluido(fecha))
     }
+}
+
+/** Objetivos de un día con los ajustes y el peso que había entonces. Null si aún no hay ajustes o pesos. */
+fun observarObjetivosEn(fecha: LocalDate, ajustes: AjustesRepository, pesos: PesoRepository): Flow<ObjetivosDia?> =
+    combine(ajustes.historial, pesos.historial) { historial, listaPesos -> objetivosEn(fecha, historial, listaPesos) }

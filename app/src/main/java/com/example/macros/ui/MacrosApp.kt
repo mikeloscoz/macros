@@ -104,5 +104,5 @@ fun MacrosApp() {
         }
     }
 
-    PedirPesoSiFalta()
+    PedirDatosSiFaltan()
 }

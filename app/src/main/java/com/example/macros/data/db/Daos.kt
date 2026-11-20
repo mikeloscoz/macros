@@ -94,4 +94,46 @@ interface PesoDao {
 
     @Query("DELETE FROM pesos")
     suspend fun borrarTodos()
+
+    @Delete
+    suspend fun borrar(peso: Peso)
+}
+
+@Dao
+interface AjustesDao {
+    @Query("SELECT * FROM ajustes_historial ORDER BY fecha")
+    fun observarHistorial(): Flow<List<AjustesDesde>>
+
+    @Query("SELECT * FROM ajustes_historial ORDER BY fecha")
+    suspend fun historial(): List<AjustesDesde>
+
+    @Upsert
+    suspend fun guardar(ajustes: AjustesDesde)
+
+    @Upsert
+    suspend fun guardarTodos(lista: List<AjustesDesde>)
+
+    @Query("DELETE FROM ajustes_historial")
+    suspend fun borrarTodos()
+}
+
+@Dao
+interface DiaExcluidoDao {
+    @Query("SELECT * FROM dias_excluidos ORDER BY fecha")
+    fun observarTodos(): Flow<List<DiaExcluido>>
+
+    @Query("SELECT * FROM dias_excluidos")
+    suspend fun todos(): List<DiaExcluido>
+
+    @Upsert
+    suspend fun excluir(dia: DiaExcluido)
+
+    @Delete
+    suspend fun incluir(dia: DiaExcluido)
+
+    @Upsert
+    suspend fun guardarTodos(lista: List<DiaExcluido>)
+
+    @Query("DELETE FROM dias_excluidos")
+    suspend fun borrarTodos()
 }

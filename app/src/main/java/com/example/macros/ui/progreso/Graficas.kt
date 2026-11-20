@@ -64,6 +64,7 @@ import kotlin.math.floor
 import kotlin.math.max
 
 private val ClaveEtiquetas = ExtraStore.Key<List<String>>()
+private val ClaveObjetivos = ExtraStore.Key<List<Double?>>()
 
 @Composable
 private fun fuenteInter(): Typeface {
@@ -141,18 +142,25 @@ fun GraficaPeso(pesos: List<Peso>, modifier: Modifier = Modifier) {
     )
 }
 
-/** Barras de kcal: verdes, o rojas si pasan del objetivo; con la cifra encima y la línea del objetivo. */
+/**
+ * Barras de kcal: verdes, o rojas si pasan del objetivo de SUS días (el objetivo puede cambiar con el tiempo);
+ * con la cifra encima y una línea con el objetivo medio del periodo.
+ */
 @Composable
 fun GraficaKcal(barras: List<Barra>, objetivo: Double?, modifier: Modifier = Modifier) {
     val productor = remember { CartesianChartModelProducer() }
     val valores = barras.map { it.kcal ?: 0.0 }
     val etiquetas = barras.map { it.etiqueta }
-    LaunchedEffect(valores, etiquetas) {
+    val objetivos = barras.map { it.objetivo }
+    LaunchedEffect(valores, etiquetas, objetivos) {
         // Las etiquetas viajan con los datos en la misma actualización: así nunca se desincronizan
         // al cambiar de periodo (7, 4 o 12 barras).
         productor.runTransaction {
             columnSeries { series(valores) }
-            extras { it[ClaveEtiquetas] = etiquetas }
+            extras {
+                it[ClaveEtiquetas] = etiquetas
+                it[ClaveObjetivos] = objetivos
+            }
         }
     }
     val maxY = max(valores.maxOrNull() ?: 0.0, objetivo ?: 0.0) * 1.18
@@ -160,10 +168,12 @@ fun GraficaKcal(barras: List<Barra>, objetivo: Double?, modifier: Modifier = Mod
     val forma = CorneredShape.rounded(allPercent = 20)
     val verde = rememberLineComponent(fill(Primario), grosor, forma)
     val rojo = rememberLineComponent(fill(Rojo), grosor, forma)
-    val columnas = remember(verde, rojo, objetivo) {
+    val columnas = remember(verde, rojo) {
         object : ColumnCartesianLayer.ColumnProvider {
-            override fun getColumn(entry: ColumnCartesianLayerModel.Entry, seriesIndex: Int, extraStore: ExtraStore): LineComponent =
-                if (objetivo != null && entry.y > objetivo + 0.5) rojo else verde
+            override fun getColumn(entry: ColumnCartesianLayerModel.Entry, seriesIndex: Int, extraStore: ExtraStore): LineComponent {
+                val objetivoBarra = extraStore.getOrNull(ClaveObjetivos)?.getOrNull(entry.x.toInt())
+                return if (objetivoBarra != null && entry.y > objetivoBarra + 0.5) rojo else verde
+            }
 
             override fun getWidestSeriesColumn(seriesIndex: Int, extraStore: ExtraStore) = verde
         }

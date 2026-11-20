@@ -14,7 +14,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import com.example.macros.ui.components.SelectorFecha
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DatePickerDefaults
@@ -111,7 +116,7 @@ fun HoyScreen(
         if (!estado.cargando) {
             item {
                 val objetivos = estado.objetivos
-                if (objetivos != null) Resumen(estado.totales, objetivos, estado.meta.texto)
+                if (objetivos != null) Resumen(estado.totales, objetivos, estado.meta.texto, estado.excluido)
                 else TarjetaMacros {
                     Text("Registra tu peso para calcular tus objetivos.", style = MaterialTheme.typography.bodyLarge, color = TextoSecundario)
                 }
@@ -124,6 +129,7 @@ fun HoyScreen(
                     onEntrada = { hoja = Hoja.Editar(it) },
                 )
             }
+            item { NoContar(estado.excluido, vm::marcarExcluido) }
         }
     }
 
@@ -151,6 +157,7 @@ fun HoyScreen(
             hoy = estado.hoy,
             onElegir = { vm.irA(it); calendario = false },
             onCerrar = { calendario = false },
+            textoConfirmar = "Ir",
         )
     }
 }
@@ -191,10 +198,22 @@ private fun Cabecera(
 }
 
 @Composable
-private fun Resumen(totales: Totales, objetivos: Objetivos, meta: String) {
+private fun Resumen(totales: Totales, objetivos: Objetivos, meta: String, excluido: Boolean) {
     val restantes = objetivos.kcal - totales.kcal
-    val pasado = restantes < -0.5
+    // Un día que no cuenta no se marca en rojo: lo apuntado puede estar incompleto o ser aproximado.
+    val pasado = restantes < -0.5 && !excluido
     TarjetaMacros(padding = PaddingValues(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 24.dp)) {
+        if (excluido) {
+            Text(
+                "Este día no cuenta en Progreso",
+                style = MaterialTheme.typography.labelLarge,
+                color = TextoSecundario,
+                modifier = Modifier
+                    .background(VerdeClaro, RoundedCornerShape(10.dp))
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            )
+            Spacer(Modifier.height(16.dp))
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Anillo(
                 progreso = if (objetivos.kcal > 0) (totales.kcal / objetivos.kcal).toFloat() else 1f,
@@ -279,36 +298,35 @@ private fun TarjetaComida(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** Interruptor para que el día no cuente en Progreso (comida fuera, vacaciones...). */
 @Composable
-private fun SelectorFecha(fecha: LocalDate, hoy: LocalDate, onElegir: (LocalDate) -> Unit, onCerrar: () -> Unit) {
-    val msDia = 86_400_000L
-    val estado = rememberDatePickerState(
-        initialSelectedDateMillis = fecha.toEpochDay() * msDia,
-        selectableDates = object : SelectableDates {
-            override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis / msDia <= hoy.toEpochDay()
-            override fun isSelectableYear(year: Int) = year <= hoy.year
-        },
-    )
-    val colores = DatePickerDefaults.colors(
-        containerColor = Tarjeta,
-        selectedDayContainerColor = Primario,
-        todayDateBorderColor = Primario,
-        todayContentColor = Primario,
-        selectedYearContainerColor = Primario,
-    )
-    DatePickerDialog(
-        onDismissRequest = onCerrar,
-        colors = colores,
-        confirmButton = {
-            TextButton(onClick = {
-                estado.selectedDateMillis?.let { onElegir(LocalDate.ofEpochDay(it / msDia)) } ?: onCerrar()
-            }) { Text("Ir", color = Primario, style = MaterialTheme.typography.labelLarge) }
-        },
-        dismissButton = {
-            TextButton(onClick = onCerrar) { Text("Cancelar", color = Primario, style = MaterialTheme.typography.labelLarge) }
-        },
-    ) {
-        DatePicker(state = estado, colors = colores, showModeToggle = false)
+private fun NoContar(excluido: Boolean, onCambiar: (Boolean) -> Unit) {
+    TarjetaMacros(padding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = 56.dp)
+                .clickable { onCambiar(!excluido) },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                Text("No contar este día", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    "Para comidas fuera o vacaciones: no entra en las medias de Progreso.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextoSecundario,
+                )
+            }
+            Switch(
+                checked = excluido,
+                onCheckedChange = onCambiar,
+                colors = SwitchDefaults.colors(
+                    checkedTrackColor = Primario,
+                    uncheckedTrackColor = Tarjeta,
+                    uncheckedBorderColor = Borde,
+                    uncheckedThumbColor = TextoSecundario,
+                ),
+            )
+        }
     }
 }

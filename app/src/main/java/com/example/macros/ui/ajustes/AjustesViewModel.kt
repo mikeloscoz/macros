@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
 import java.nio.ByteBuffer
 import java.nio.charset.CharacterCodingException
 import java.nio.charset.Charset
@@ -36,8 +37,8 @@ data class AjustesUiState(
 class AjustesViewModel(private val c: AppContainer) : ViewModel() {
 
     val estado: StateFlow<AjustesUiState> =
-        combine(c.ajustes.ajustes, c.pesos.actual, c.objetivos) { a, peso, o ->
-            AjustesUiState(cargando = false, ajustes = a, peso = peso?.kg, objetivos = o)
+        combine(c.ajustes.actuales, c.pesos.actual, c.objetivosEn(LocalDate.now())) { a, peso, o ->
+            AjustesUiState(cargando = false, ajustes = a ?: Ajustes(), peso = peso?.kg, objetivos = o?.objetivos)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AjustesUiState())
 
     /** Mensajes cortos para mostrar abajo (snackbar). */
@@ -55,8 +56,9 @@ class AjustesViewModel(private val c: AppContainer) : ViewModel() {
     fun elegirMeta(meta: Meta) = editar { it.copy(meta = meta) }
     fun elegirSexo(sexo: Sexo) = editar { it.copy(sexo = sexo) }
 
+    /** Los cambios valen desde hoy: los días anteriores conservan sus objetivos. */
     private fun editar(cambio: (Ajustes) -> Ajustes) {
-        viewModelScope.launch { c.ajustes.guardar(cambio(c.ajustes.ajustes.first())) }
+        viewModelScope.launch { c.ajustes.guardar(cambio(c.ajustes.actuales.first() ?: Ajustes())) }
     }
 
     // --- Copia de seguridad ---
