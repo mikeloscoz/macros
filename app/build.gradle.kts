@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -25,8 +27,31 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Firma de release: los datos (y la contraseña) se leen de un archivo FUERA del repo.
+    // Ruta por defecto en el PC de Mikel; se puede cambiar con -Pmacros.firma=ruta.
+    // Si el archivo no existe, la release sale sin firmar (debug no se ve afectado).
+    val archivoFirma = file(
+        providers.gradleProperty("macros.firma").getOrElse("C:/Users/mikel/claves/macros-release.properties"),
+    )
+    val firma = if (archivoFirma.exists()) {
+        Properties().apply { archivoFirma.inputStream().use { load(it) } }
+    } else {
+        null
+    }
+    signingConfigs {
+        if (firma != null) {
+            create("release") {
+                storeFile = file(firma.getProperty("storeFile"))
+                storePassword = firma.getProperty("storePassword")
+                keyAlias = firma.getProperty("keyAlias")
+                keyPassword = firma.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (firma != null) signingConfig = signingConfigs.getByName("release")
             optimization {
                 enable = true
                 packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
